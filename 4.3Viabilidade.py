@@ -36,6 +36,10 @@ with st.sidebar:
     base_comiss_flat = st.number_input("Comissão flat por contrato (%)", value=5.0, format="%.2f") / 100
     base_comiss_dif = st.number_input("Comissão diferida por parcela (%)", value=1.0, format="%.2f") / 100
 
+    st.header("Cessões")
+    base_cessao_perc = st.number_input("Porcentagem da carteira cedida mensalmente (%)", value=10.0, format="%.2f") / 100
+    base_cessao_tx = st.number_input("Taxa de Cessão (%)", value=2.2, format="%.2f") / 100
+
     st.header("Alíquotas")
     aliq_IRCSLL = st.number_input("IRPJ + CSLL (%)", value=40.0, format="%.2f") / 100
     aliq_PISCOFINS = st.number_input("PIS + COFINS (%)", value=4.65, format="%.2f") / 100
@@ -74,6 +78,8 @@ if st.button("Executar Simulação"):
             aliq_ISS=aliq_ISS,
             base_desp_mensal=base_desp_mensal,
             base_desp_outras=base_desp_outras,
+            base_cessao_perc=base_cessao_perc,
+            base_cessao_tx=base_cessao_tx,
             base_capt=base_capt,
             base_comiss_capt=0.01,
             base_prazo_capt=base_prazo_capt,
@@ -97,6 +103,7 @@ if st.button("Executar Simulação"):
 
         df_viab = df_resultado.groupby('Ano').agg(
             Receitas_Totais=('DRE_Rec_Total', 'sum'), Receitas_Juros=('Receita_Juros', 'sum'), Receitas_TC=('Receita_TC', 'sum'),
+            Resultado_Cessao=('Resultado_Cessao', 'sum'),
             Despesas_Totais=('DRE_Desp_Total', 'sum'), Despesas_Captacoes=('DRE_Desp_Captacao', 'sum'), Despesas_Impostos=('DRE_Desp_Impostos', 'sum'), 
             Despesas_Comissoes=('DRE_Desp_Comissoes', 'sum'),Despesas_Admin=('DRE_Desp_Admin', 'sum'), Desp_PDD=('DRE_Desp_PDD', 'sum'),LAIR=('LAIR', 'sum'),
             IR_CSLL=('Desp_IR_CSLL', 'sum'), Lucro=('Resultado_Liquido', 'sum'), Lucro_Acumulado=('Resultado_Liq_Acum', 'last')
@@ -107,6 +114,7 @@ if st.button("Executar Simulação"):
             "Receitas_Totais": "Receita Total",
             "Receitas_Juros": " (+) Receita c/ Crédito",
             "Receitas_TC": " (+) Receita c/ Serviço",
+            "Resultado_Cessao": " (+) Receita c/ Cessão",
             "Despesas_Totais": "Despesas Totais",
             "Despesas_Captacoes": " (-) Captação",
             "Despesas_Admin": " (-) Administrativas",
@@ -187,6 +195,7 @@ if st.button("Executar Simulação"):
         st.markdown("📁 <b>Receitas</b>", unsafe_allow_html=True)
         st.markdown(f"<small>&emsp;🔹 <b>Receita de Juros:</b> {format_currency(df_resultado['Receita_Juros'].sum(), 'BRL', locale='pt_BR')}</small>", unsafe_allow_html=True)
         st.markdown(f"<small>&emsp;🔹 <b>Receita de Serviços:</b> {format_currency(df_resultado['Receita_TC'].sum(), 'BRL', locale='pt_BR')}</small>", unsafe_allow_html=True)
+        st.markdown(f"<small>&emsp;🔹 <b>Receita de Cessao:</b> {format_currency(df_resultado['Resultado_Cessao'].sum(), 'BRL', locale='pt_BR')}</small>", unsafe_allow_html=True)
 
         # --- Despesas Gerais ---
         st.markdown("📁 <b>Despesas Gerais</b>", unsafe_allow_html=True)
