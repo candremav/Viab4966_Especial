@@ -38,7 +38,7 @@ with st.sidebar:
 
     st.header("Cessões")
     base_cessao_perc = st.number_input("Porcentagem da carteira cedida mensalmente (%)", value=10.0, format="%.2f") / 100
-    base_cessao_tx = st.number_input("Taxa de Cessão (%)", value=2.2, format="%.2f") / 100
+    base_cessao_tx = st.number_input("Taxa de Cessão (%)", value=1.8, format="%.2f") / 100
 
     st.header("Alíquotas")
     aliq_IRCSLL = st.number_input("IRPJ + CSLL (%)", value=40.0, format="%.2f") / 100

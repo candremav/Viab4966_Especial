@@ -29,7 +29,7 @@ def Viab4966_FC(
     base_desp_mensal=15000,
     base_desp_outras=10000,
     base_cessao_perc = 0.1,
-    base_cessao_tx = 0.022,
+    base_cessao_tx = 0.018,
     base_capt='PRE',
     base_comiss_capt=0.01,
     base_prazo_capt=12,
@@ -199,8 +199,7 @@ def Viab4966_FC(
             parcelas_orig.append(vp)
         return parcelas_orig
 
-    # CESSÃO
-
+    #CESSAO
     if base_cessao_perc > 0.0:
         originacao['Cessao'] = originacao['Base_Saldo'] * base_cessao_perc
 
@@ -231,11 +230,11 @@ def Viab4966_FC(
             # Preenche os dados linha a linha
             for data_venc, vf, vp_orig, vp_cessao in zip(datas_parcelas, parcelas_vf, parcelas_orig, parcelas_cessao):
                 lista_cessao.append({
-                    'DataBase': row['Base_Data'],
+                    'Base_Data': row['Base_Data'],
                     'DataPagamento': data_venc,
                     'ValorFuturo': vf,
                     'VP_Original': vp_orig,
-                    'VP_Cessao': vp_cessao,
+                    'DFC_Rec_Cessao': vp_cessao,
                     'TaxaJuros_Original': i,
                     'TaxaJuros_Cessao': base_cessao_tx
                 })
@@ -243,18 +242,19 @@ def Viab4966_FC(
         # Criar DataFrame final
         df_cessao = pd.DataFrame(lista_cessao)
 
-        df_cessao['Resultado_Cessao'] = df_cessao['VP_Cessao'] - df_cessao['VP_Original']
+        df_cessao['Resultado_Cessao'] = df_cessao['DFC_Rec_Cessao'] - df_cessao['VP_Original']
 
-        fc_cessao = df_cessao.groupby(['DataBase'])[['VP_Cessao','VP_Original','Resultado_Cessao']].sum().reset_index()
+        fc_cessao = df_cessao.groupby(['Base_Data'])[['DFC_Rec_Cessao', 'Resultado_Cessao']].sum().reset_index()
 
-        fc_cessao['Ano'] = fc_cessao['DataBase'].dt.year
-        fc_cessao['Mes'] = fc_cessao['DataBase'].dt.month
+        fc_cessao['Ano'] = fc_cessao['Base_Data'].dt.year
+        fc_cessao['Mes'] = fc_cessao['Base_Data'].dt.month
+        originacao = originacao.merge(fc_cessao[['Base_Data', 'DFC_Rec_Cessao', 'Resultado_Cessao']], on='Base_Data', how='left')
     else:
         originacao['Ano'] = originacao['Base_Data'].dt.year
         originacao['Mes'] = originacao['Base_Data'].dt.month
         originacao['Resultado_Cessao'] = 0.0
+        originacao['DFC_Rec_Cessao'] = 0.0
 
-        fc_cessao = originacao[['Ano', 'Mes', 'Resultado_Cessao']].copy()
 
     #BASE ---------------------------------------------------
     contratos_fut_clean = originacao.copy()
@@ -436,7 +436,9 @@ def Viab4966_FC(
     TabelasMensais = TabelasMensais[['Ano', 'Mes', 'Parcela', 'Saldo', 'Juros', 'PDDAcum', 'DespPDD',
                                      'RevPDD', 'DedutAcum', 'DedutPeriodo', 'Dif_Temp']].copy()
 
-    TabelasMensais = TabelasMensais.merge(originacao[['Ano', 'Mes', 'Base_Saldo', 'Receita_TC', 'Desp_Comiss_Flat', 'Desp_Outras']], on=['Ano', 'Mes'], how='left')
+    TabelasMensais = TabelasMensais.merge(originacao[['Ano', 'Mes', 'Base_Saldo', 'Receita_TC', 'Desp_Comiss_Flat',
+                                                      'Desp_Outras','Resultado_Cessao', 'DFC_Rec_Cessao']],
+                                          on=['Ano', 'Mes'], how='left')
 
     TabelasMensais = TabelasMensais.rename(columns={'Base_Saldo': 'Desembolsos', 'Juros': 'Receita_Juros', 'Saldo': 'Saldo_Carteira'})
 
@@ -449,11 +451,7 @@ def Viab4966_FC(
     TabelasMensais['DedutPeriodo'] = -TabelasMensais['DedutPeriodo']
     TabelasMensais['PDDAcum'] = -TabelasMensais['PDDAcum']
 
-    TabelasMensais = TabelasMensais.merge(fc_cessao[['Ano','Mes','Resultado_Cessao']], on=['Ano','Mes'], how='left')
-    TabelasMensais['DFC_Rec_Cessao'] = TabelasMensais['Resultado_Cessao']
-
     TabelasMensais = TabelasMensais.fillna(0.0)
-
     TabelasMensais['DFC_Rec_Parcelas'] = TabelasMensais['Parcela']
     TabelasMensais['DFC_Rec_TC'] = TabelasMensais['Receita_TC']
     TabelasMensais['DFC_Des_Emprestimos'] = TabelasMensais['Desembolsos']
@@ -494,31 +492,28 @@ def Viab4966_FC(
                                   #DRE
                                   'Receita_Juros', 'Receita_TC', 'Desp_Captacao', 'Desp_PISCOFINS', 'Desp_ISS', 
                                   'Desp_Comiss_Flat', 'Desp_Comiss_Dif', 'Desp_Comiss_Capt', 'Desp_Mensais', 'Desp_Outras',
-                                  'DespPDD', 'RevPDD', 'DedutPeriodo', 'Resultado_Cessao', 'LAIR', 'Desp_IR_CSLL', 'Resultado_Liquido',
+                                  'Resultado_Cessao', 'DespPDD', 'RevPDD', 'DedutPeriodo', 'LAIR', 'Desp_IR_CSLL', 'Resultado_Liquido',
 
                                   #BALANÇO
                                   'Saldo_Carteira', 'PDDAcum', 'DedutAcum', 'Dif_Temp', 'Saldo_Captacao', 'Saldo_Comissoes',
 
                                   #DFC
                                   'DFC_Rec_Parcelas', 'DFC_Rec_TC', 'DFC_Des_Emprestimos','DFC_Pgto_ComissFlat', 'DFC_Pgto_ComissDif', 'DFC_Pgto_Mensais',
-                                  'DFC_Pgto_Outras', 'DFC_Pgto_PISCOFINS', 'DFC_Pgto_ISS', 'DFC_Pgto_IRCSLL', 'DFC_Rec_Captacao',
-                                  'DFC_Des_Captacao', 'DFC_Rec_Cessao', 'DFC_Necess_Caixa', 'DFC_FC_Liquido', 'DFC_Caixa_Acum',
+                                  'DFC_Pgto_Outras', 'DFC_Pgto_PISCOFINS', 'DFC_Pgto_ISS', 'DFC_Pgto_IRCSLL', 'DFC_Rec_Cessao', 'DFC_Rec_Captacao',
+                                'DFC_Des_Captacao', 'DFC_Necess_Caixa', 'DFC_FC_Liquido', 'DFC_Caixa_Acum',
 
                                   #APURAÇÃO IR/CSLL
                                   'Fiscal_Resultado', 'Fiscal_Preju_Acum', 'Fiscal_Compensacao']].copy()
     datas = [base_ini + pd.DateOffset(months=i) for i in range(len(Viabilidade))]
 
     Viabilidade['Data'] = datas
+
     Viabilidade.loc[0, 'DFC_Necess_Caixa'] = (Viabilidade.loc[0, 'DFC_Rec_Parcelas'] + Viabilidade.loc[0, 'DFC_Des_Emprestimos'] +
                                           Viabilidade.loc[0, 'DFC_Rec_TC'] + Viabilidade.loc[0, 'DFC_Pgto_ComissFlat'] + Viabilidade.loc[0, 'DFC_Pgto_ComissDif'] +
                                           Viabilidade.loc[0, 'DFC_Pgto_Mensais'] + Viabilidade.loc[0, 'DFC_Pgto_Outras'] +
                                           Viabilidade.loc[0, 'DFC_Pgto_PISCOFINS'] + Viabilidade.loc[0, 'DFC_Pgto_ISS'] +
                                           Viabilidade.loc[0, 'DFC_Pgto_IRCSLL'] + Viabilidade.loc[0, 'DFC_Rec_Captacao'] +
-                                          Viabilidade.loc[0, 'DFC_Des_Captacao'] + Viabilidade.loc[0, 'DFC_Rec_Cessao'] +
-                                          Viabilidade.loc[0, 'DFC_Caixa_Acum'])
-
-    Viabilidade.loc[0, 'DFC_Necess_Caixa'] = min(Viabilidade.loc[0, 'DFC_Necess_Caixa'], Viabilidade.loc[0, 'DFC_Des_Emprestimos'])
-
+                                          Viabilidade.loc[0, 'DFC_Des_Captacao'] + Viabilidade.loc[0, 'DFC_Caixa_Acum'])
     if Viabilidade.loc[0, 'DFC_Necess_Caixa'] < 0:
         if base_capt == 'POS':
             Simul_CDB=CDBPos(P=-Viabilidade.loc[0, 'DFC_Necess_Caixa']*(1+base_comiss_capt), df_i=cdi, inicio=Viabilidade.loc[0, 'Data'],
@@ -553,6 +548,17 @@ def Viab4966_FC(
                       'DFC_Rec_Captacao_simul', 'Saldo_Comissoes_simul', 'Desp_Comiss_Capt_simul']
 
     Viabilidade = Viabilidade.drop(columns=cols_para_excl)
+
+    FC_Liquido = (Viabilidade.loc[0, 'DFC_Rec_Parcelas'] + Viabilidade.loc[0, 'DFC_Rec_TC'] + Viabilidade.loc[0, 'DFC_Des_Emprestimos'] +
+                Viabilidade.loc[0, 'DFC_Pgto_ComissFlat'] + Viabilidade.loc[0, 'DFC_Pgto_ComissDif'] + Viabilidade.loc[0, 'DFC_Pgto_Mensais'] +
+                Viabilidade.loc[0, 'DFC_Pgto_Outras'] + 
+                Viabilidade.loc[0, 'DFC_Pgto_PISCOFINS'] + Viabilidade.loc[0, 'DFC_Pgto_ISS'] + Viabilidade.loc[0, 'DFC_Pgto_IRCSLL'] +
+                Viabilidade.loc[0, 'DFC_Rec_Cessao'] + Viabilidade.loc[0, 'DFC_Rec_Captacao'] + Viabilidade.loc[0, 'DFC_Des_Captacao'])
+
+    Viabilidade.loc[0, 'DFC_FC_Liquido'] = FC_Liquido
+
+    Viabilidade.loc[0, 'DFC_Caixa_Acum'] = Viabilidade.loc[0, 'DFC_FC_Liquido']
+
     Viabilidade.loc[0, 'Desp_PISCOFINS'] = -(((Viabilidade.loc[0,'Receita_Juros'] + Viabilidade.loc[0,'Desp_Captacao'] + Viabilidade.loc[0,'Receita_TC']) * aliq_PISCOFINS))
     Viabilidade.loc[0, 'LAIR'] = (Viabilidade.loc[0, 'Receita_Juros'] + Viabilidade.loc[0, 'Receita_TC'] + Viabilidade.loc[0, 'Desp_Captacao'] +
                                   Viabilidade.loc[0, 'Desp_PISCOFINS'] + Viabilidade.loc[0, 'Desp_ISS'] + Viabilidade.loc[0, 'Desp_Comiss_Flat'] +
@@ -582,10 +588,8 @@ def Viab4966_FC(
         Necess_Caixa = (df.at[idx, 'DFC_Rec_Parcelas'] + df.at[idx, 'DFC_Rec_TC'] + df.at[idx, 'DFC_Des_Emprestimos'] + df.at[idx, 'DFC_Pgto_PISCOFINS'] +
                         df.at[idx, 'DFC_Pgto_ISS'] + df.at[idx, 'DFC_Pgto_ComissFlat'] + df.at[idx, 'DFC_Pgto_ComissDif'] +
                         df.at[idx, 'DFC_Pgto_Mensais'] + df.at[idx, 'DFC_Pgto_Outras'] + df.at[idx, 'DFC_Pgto_IRCSLL'] +
-                        df.at[idx, 'DFC_Rec_Captacao'] + df.at[idx,'DFC_Des_Captacao'] + df.at[idx, 'DFC_Rec_Cessao'] +
+                        df.at[idx, 'DFC_Rec_Captacao'] + df.at[idx,'DFC_Des_Captacao'] +
                         df.at[idx-1, 'DFC_Caixa_Acum'])
-
-        Necess_Caixa = min(Necess_Caixa,df.at[idx, 'DFC_Des_Emprestimos'])
 
         df.at[idx, 'DFC_Necess_Caixa'] = Necess_Caixa
 
@@ -631,8 +635,8 @@ def Viab4966_FC(
             df.at[idx, 'DFC_Necess_Caixa'] = 0.0
 
         FC_Liquido = (df.at[idx, 'DFC_Rec_Parcelas'] + df.at[idx, 'DFC_Rec_TC'] + df.at[idx, 'DFC_Des_Emprestimos'] + df.at[idx, 'DFC_Pgto_PISCOFINS'] +
-                      df.at[idx, 'DFC_Pgto_ISS'] + df.at[idx, 'DFC_Pgto_IRCSLL'] + df.at[idx, 'DFC_Pgto_ComissFlat'] +
-                      df.at[idx, 'DFC_Pgto_ComissDif'] + df.at[idx, 'DFC_Pgto_Mensais'] + df.at[idx, 'DFC_Pgto_Outras'] + df.at[idx, 'DFC_Rec_Cessao'] +
+                      df.at[idx, 'DFC_Pgto_ISS'] + df.at[idx, 'DFC_Pgto_IRCSLL'] + df.at[idx, 'DFC_Pgto_ComissFlat'] + df.at[idx, 'DFC_Rec_Cessao'] +
+                      df.at[idx, 'DFC_Pgto_ComissDif'] + df.at[idx, 'DFC_Pgto_Mensais'] + df.at[idx, 'DFC_Pgto_Outras'] +
                       df.at[idx, 'DFC_Rec_Captacao'] + df.at[idx, 'DFC_Des_Captacao'])
 
         df.at[idx, 'DFC_FC_Liquido'] = FC_Liquido
@@ -695,6 +699,7 @@ def Viab4966_FC(
         df.at[df.index[-1], 'Saldo_Captacao'] = 0
 
         # Diminuir este valor do último valor das colunas 'DFC_Necess_Caixa', 'DFC_FC_Liquido' e 'DFC_Caixa_Acum'
+        df.at[df.index[-1], 'DFC_Des_Captacao'] -= saldo_capt
         df.at[df.index[-1], 'DFC_Necess_Caixa'] -= saldo_capt
         df.at[df.index[-1], 'DFC_FC_Liquido'] -= saldo_capt
         df.at[df.index[-1], 'DFC_Caixa_Acum'] -= saldo_capt
@@ -707,17 +712,16 @@ def Viab4966_FC(
         'Ano', 'Mes', 'Data',
         #DRE
         'Receita_Juros', 'Receita_TC', 'Desp_Captacao', 'Desp_PISCOFINS', 'Desp_ISS',
-        'Desp_Comiss_Flat', 'Desp_Comiss_Dif', 'Desp_Comiss_Capt', 'Desp_Mensais', 'Desp_Outras',
-        'DespPDD', 'RevPDD', 'DedutPeriodo', 'Resultado_Cessao', 'LAIR', 'Desp_IR_CSLL',
-        'Resultado_Liquido', 'Resultado_Liq_Acum',
+        'Desp_Comiss_Flat', 'Desp_Comiss_Dif', 'Desp_Comiss_Capt', 'Desp_Mensais', 'Desp_Outras', 'Resultado_Cessao', 
+        'DespPDD', 'RevPDD', 'DedutPeriodo', 'LAIR', 'Desp_IR_CSLL', 'Resultado_Liquido', 'Resultado_Liq_Acum',
 
         #BALANÇO
         'Saldo_Carteira', 'PDDAcum', 'DedutAcum', 'Dif_Temp', 'Saldo_Captacao', 'Saldo_Comissoes',
 
         #DFC
         'DFC_Rec_Parcelas', 'DFC_Rec_TC', 'DFC_Des_Emprestimos','DFC_Pgto_ComissFlat', 'DFC_Pgto_ComissDif', 'DFC_Pgto_Mensais',
-        'DFC_Pgto_Outras', 'DFC_Pgto_PISCOFINS', 'DFC_Pgto_ISS', 'DFC_Pgto_IRCSLL', 'DFC_Des_Captacao', 'DFC_Rec_Captacao', 'DFC_Rec_Cessao',
-        'DFC_Necess_Caixa', 'DFC_FC_Liquido', 'DFC_Caixa_Acum',
+        'DFC_Pgto_Outras', 'DFC_Pgto_PISCOFINS', 'DFC_Pgto_ISS', 'DFC_Pgto_IRCSLL', 'DFC_Rec_Cessao',
+        'DFC_Des_Captacao', 'DFC_Rec_Captacao', 'DFC_Necess_Caixa', 'DFC_FC_Liquido', 'DFC_Caixa_Acum',
 
         #APURAÇÃO IR/CSLL
         'Fiscal_Resultado', 'Fiscal_Preju_Acum', 'Fiscal_Compensacao']].copy()
