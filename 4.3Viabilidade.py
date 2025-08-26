@@ -37,7 +37,7 @@ with st.sidebar:
     base_comiss_dif = st.number_input("Comissão diferida por parcela (%)", value=1.0, format="%.2f") / 100
 
     st.header("Originação")
-    base_g_mes = st.number_input("Crescimento mensal do número de contratos (%)", value=10.0, format="%.2f") / 100
+    base_g_mes = st.number_input("Crescimento mensal do número de contratos (%)", value=5.0, format="%.2f") / 100
     base_teto = st.number_input("Teto máximo para o número de contratos mensais (Qtd)", value=None)
 
     st.header("Cessões")
