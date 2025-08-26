@@ -35,6 +35,8 @@ def Viab4966_FC(
     base_prazo_capt=12,
     base_pos_pct_capt=1.15,
     base_pre=0.17,
+    base_g_mes=0.00,
+    base_teto=None,
     padrao_atraso=None,
     cdi=None):
 
@@ -86,6 +88,10 @@ def Viab4966_FC(
         Fator multiplicador sobre o CDI para captação pós-fixada.
     base_pre : float
         Taxa de captação pré-fixada anual.
+    base_g_mes : float
+        Crescimento mensal esperado na originação (%).
+    base_teto : float
+        Teto máximo para o saldo total da carteira. Default None.
     padrao_atraso : object
         Estrutura de atrasos, se aplicável. Default None.
     cdi: pandas.DataFrame
@@ -117,7 +123,11 @@ def Viab4966_FC(
         'Base_Qtd': [base_quantid] * base_periodos,
         'Base_Tipo': [base_tipo] * base_periodos,
         'Base_Contrato': ['Contrato'] * base_periodos
-    })
+    }).reset_index()
+
+    originacao['Base_Qtd'] = originacao['Base_Qtd'] * (1 + base_g_mes) ** originacao['index']
+    if base_teto is not None:
+        originacao['Base_Qtd'] = np.minimum(originacao['Base_Qtd'], base_teto)
 
     originacao['Base_Saldo'] = originacao['Base_Ticket'] * originacao['Base_Qtd']
     originacao['Taxa_Origem'] = pd.NA

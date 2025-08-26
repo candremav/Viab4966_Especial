@@ -36,6 +36,10 @@ with st.sidebar:
     base_comiss_flat = st.number_input("Comissão flat por contrato (%)", value=5.0, format="%.2f") / 100
     base_comiss_dif = st.number_input("Comissão diferida por parcela (%)", value=1.0, format="%.2f") / 100
 
+    st.header("Originação")
+    base_g_mes = st.number_input("Crescimento mensal do número de contratos (%)", value=10.0, format="%.2f") / 100
+    base_teto = st.number_input("Teto máximo para o número de contratos mensais (Qtd)", value=None)
+
     st.header("Cessões")
     base_cessao_perc = st.number_input("Porcentagem da carteira cedida mensalmente (%)", value=10.0, format="%.2f") / 100
     base_cessao_tx = st.number_input("Taxa de Cessão (%)", value=1.8, format="%.2f") / 100
@@ -85,6 +89,8 @@ if st.button("Executar Simulação"):
             base_prazo_capt=base_prazo_capt,
             base_pos_pct_capt=base_pos_pct_capt,
             base_pre=base_pre,
+            base_g_mes=base_g_mes,
+            base_teto=base_teto,
             cdi=df_cdi
         )
 
